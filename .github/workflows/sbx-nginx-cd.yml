@@ -41,3 +41,19 @@ jobs:
           IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
           docker build --tag="$IMAGE_ID:$IMAGE_TAG" .
           docker push $IMAGE_ID:$IMAGE_TAG
+
+      - name: Set Kubernetes Context
+        id: aks-login
+        run: |
+          az aks get-credentials --resource-group ${{ env.CLUSTER_RESOURCE_GROUP }} --name ${{ env.CLUSTER_NAME }} --overwrite-existing
+          kubelogin convert-kubeconfig -l azurecli -t ""
+
+      - name: Deploy to AKS
+        id: deploy-aks
+        uses: Azure/k8s-deploy@v4
+        with:
+          namespace: 'default'
+          manifests: |
+            deployment.yaml
+          images: ${{ env.CONTAINER_REPOSITORY }}/${{env.IMAGE_NAME}}:${{env.IMAGE_TAG}}
+          pull: false 
