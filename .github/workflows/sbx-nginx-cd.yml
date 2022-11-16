@@ -1,0 +1,43 @@
+name: SBX - NGINX Deployment
+
+on:
+  workflow_dispatch:
+
+env:
+  ENVIRONMENT: "dev"
+  CLUSTER_NAME: "aks-thawatcd-az-usw3-sbx-001"
+  CLUSTER_RESOURCE_GROUP: "rg-thawatcd-az-usw3-sbx-00"
+  ACR_NAME: "acrthawatcdazusw3sbx001"
+  NAMESPACE_PREFIX: "ai-chatbot-internal"
+  PROJECT_NAME: "ai-chatbot-internal"
+  MICROSERVICE_NAME: "ai-chatbot-internal-be-chatbot-adapter-backend"
+  CONTAINER_REPOSITORY: "acrthawatcdazusw3sbx001.azurecr.io"
+  IMAGE_NAME: "myweb"
+  IMAGE_TAG: "0.0.1-SNAPSHOT"
+
+jobs:
+  build-and-Deploy:
+    name: Build and Deploy
+    runs-on: [self-hosted, thawatcd-sbx]
+    environment: sbx
+    steps:
+      - name: Checkout pipelines
+        uses: actions/checkout@v3
+
+      - name: Login via Azure CLI
+        id: az-login
+        run: |
+          az login --identity --username ${{ secrets.AZURE_SELFHOST_USER_MANAGE_IDENTITY_CLIENT_ID }}
+          az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: "ACR login"
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build and Push Docker image
+        run: |
+          IMAGE_ID=${{env.CONTAINER_REPOSITORY }}/${{env.IMAGE_NAME}}
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          docker build --tag="$IMAGE_ID:$IMAGE_TAG" build/docker/
+          docker push $IMAGE_ID:$IMAGE_TAG
